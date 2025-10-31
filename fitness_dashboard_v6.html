@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>Run & Lift Dashboard — v6</title>
+  <title>Run & Lift Dashboard — v4</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800;900&display=swap" rel="stylesheet">
@@ -95,31 +95,201 @@
     select{
       background:#0f111b;color:var(--text);border:1px solid #272a3c;padding:6px 8px;border-radius:10px
     }
+    .subgrid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+    /* Calendar */
+    .cal{background:#0f1017;border:1px solid #1f2130;border-radius:14px;padding:10px}
+    .cal header{position:relative;background:transparent;border:none;padding:4px 0 10px;display:flex;gap:8px}
+    .cal .title{font-weight:800; font-size:16px}
+    .cal .monthlbl{font-weight:700}
+    .cal .grid{display:grid;grid-template-columns:repeat(7,1fr);gap:8px;margin-top:8px}
+
+
+
+
+
+    
+    .cal .day{aspect-ratio:1/1; display:flex;align-items:center;justify-content:center;border-radius:50%}
+    .cal .dot{width:30px;height:30px;border-radius:50%}
+    .cal .dot.half{background: conic-gradient(var(--accent-orange) 0 180deg, var(--accent-blue) 180deg 360deg); transform: rotate(45deg);}
+    .muted{color:var(--muted)}
+    /* Summary table */
+    table.stats{width:100%; border-collapse:separate; border-spacing:0; overflow:hidden; border-radius:14px; border:1px solid #1f2130}
+    table.stats td{padding:8px 12px; border-bottom:1px solid #1f2130}
+    table.stats tr:last-child td{border-bottom:none}
+    .smallnote{color:var(--muted);font-size:12px;margin-top:6px}
   </style>
 </head>
 <body>
 <header>
   <div class="brand">🏃‍♂️ Run (orange) &nbsp;/&nbsp; 🏋️‍♂️ Lift (blue)</div>
   <span class="status" id="liveStatus">Loading Google Sheets…</span>
+  <div class="toolbar" id="rangeToolbar">
+    <button class="btn" data-range="all">All‑time</button>
+    <button class="btn" data-range="ytd">YTD</button>
+    <button class="btn" data-range="mtd">MTD</button>
+  </div>
   <div class="filebox">
     <label class="pill">CSV</label>
-    <input type="file" id="csvInput" accept=".csv" title="Optional: drop a CSV to override Google Sheets" />
+    <input type="file" id="csvInput" accept=".csv" />
   </div>
 </header>
 
 <div class="container">
-  <div id="preview" style="font-family:monospace; white-space:pre-wrap; font-size:13px; line-height:1.5;"></div>
+  <div class="split">
+    <!-- RUN -->
+    <section class="card">
+      <div class="section-title"><span class="dot orange"></span><h3>Run</h3></div>
+      <div class="kpis">
+        <div class="kpi"><small>Distance</small><strong id="run_distance">–</strong><small>km</small></div>
+        <div class="kpi"><small>Activities</small><strong id="run_sessions">–</strong></div>
+        <div class="kpi"><small>Time</small><strong id="run_time">–</strong></div>
+        <div class="kpi"><small>Rel. Effort</small><strong id="run_effort">–</strong></div>
+      </div>
+      <div class="row">
+        <div class="card">
+          <div class="legend"><span class="pill">Weekly distance</span></div>
+          <canvas id="runWeekly"></canvas>
+        </div>
+        <div class="card">
+          <div class="legend"><span class="pill">Pace distribution (min/km)</span></div>
+          <canvas id="runPace"></canvas>
+        </div>
+      </div>
+      <div class="row">
+        <div class="card">
+          <div class="legend"><span class="pill">Year summary</span><select id="runYearSelect"></select></div>
+          <table class="stats" id="runYearTable"></table>
+          <div class="smallnote">All‑Time</div>
+          <table class="stats" id="runAllTimeTable"></table>
+        </div>
+        <div class="card">
+          <div class="legend"><span class="pill">Distance — comparison</span></div>
+          <canvas id="runCompare"></canvas>
+          <div class="smallnote">Orange = current period, Grey = previous period.</div>
+        </div>
+      </div>
+    </section>
+
+    <!-- LIFT -->
+    <section class="card">
+      <div class="section-title"><span class="dot blue"></span><h3>Lift</h3></div>
+      <div class="kpis">
+        <div class="kpi"><small>Activities</small><strong id="lift_sessions">–</strong></div>
+        <div class="kpi"><small>Total Time</small><strong id="lift_time">–</strong></div>
+        <div class="kpi"><small>Avg / Session</small><strong id="lift_avg_time">–</strong></div>
+        <div class="kpi"><small>Tagged</small><strong id="lift_tagged">–</strong></div>
+      </div>
+      <div class="subgrid">
+        <div class="card" style="position:relative;">
+          <div class="legend"><span class="pill">Muscle distribution</span></div>
+          <div class="top-right">
+            <select id="radarMode"><option value="mtd">MTD vs prev MTD</option><option value="ytd">YTD vs prev YTD</option></select>
+            <select id="radarMonth"></select>
+          </div>
+          <canvas id="liftRadar"></canvas>
+          <div class="smallnote">Categories: Legs, Back, Chest, Shoulders, Arms, Core.</div>
+        </div>
+        <div class="card">
+          <div class="legend"><span class="pill">Monthly lifting sessions</span></div>
+          <canvas id="liftMonthly"></canvas>
+        </div>
+      </div>
+      <div class="row">
+        <div class="card">
+          <div class="legend"><span class="pill">Session duration (min)</span></div>
+          <canvas id="liftDurations"></canvas>
+        </div>
+      </div>
+    </section>
+  </div>
+
+  <!-- Workout Calendar -->
+  <div class="card" style="margin-top:16px">
+    <header class="cal header" style="display:flex;gap:10px;align-items:center;">
+      <div class="title">Workout Calendar</div>
+      <div class="nav" style="margin-left:auto;display:flex;gap:6px">
+        <button class="btn" id="wprev">◀</button>
+        <div class="monthlbl" id="wlabel"></div>
+        <button class="btn" id="wnext">▶</button>
+      </div>
+    </header>
+    <div class="cal" id="workoutCal"></div>
+  </div>
 </div>
 
-<script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
 <script>
+function hmsToSec(str){ if(!str) return 0; const p=String(str).split(':').map(Number).reverse(); let s=0; if(p[0]) s+=p[0]; if(p[1]) s+=p[1]*60; if(p[2]) s+=p[2]*3600; return s;}
+function normalizeDistance(v){ if(v==null||v==="") return 0; const n=Number(String(v).replace(',','.')); if(!isFinite(n)) return 0; return n>1000?n/1000:n;}
+function fmtHMS(t){ const h=Math.floor(t/3600), m=Math.floor((t%3600)/60), s=Math.floor(t%60); return [h,m,s].map(v=>String(v).padStart(2,'0')).join(':');}
+function sum(a){ return a.reduce((x,y)=>x+(isFinite(y)?y:0),0);}
+function getCol(r, names){ for(const n of names){ if(n in r && r[n]!=null && String(r[n]).trim()!=="") return r[n]; } return null;}
+function isRun(r){ const t=(getCol(r,["Activity Type","ActivityType","Type"])||"").toLowerCase(); return t.includes("run");}
+function isLift(r){ const t=(getCol(r,["Activity Type","ActivityType","Type"])||"").toLowerCase(); if(t.includes("workout")||t.includes("weight training")) return true; const fields=["Activity Name","Activity Description","Activity Private Note","Name","Description","Private Note"]; const hay=fields.map(f=>(getCol(r,[f])||"").toLowerCase()).join(" "); return hay.includes("logged with hevy");}
+function inRange(d,mode){ if(!d||!dayjs(d).isValid()) return false; const n=dayjs(); if(mode==="all") return true; if(mode==="ytd") return d.year()===n.year(); if(mode==="mtd") return d.year()===n.year() && d.month()===n.month(); return true;}
+
+const MUSCLE_GROUPS=["Back","Chest","Core","Shoulders","Arms","Legs"];
+const muscleKeywords={"Back":["row","pull-up","deadlift","lat","back"],"Chest":["bench","press","push-up","chest","fly"],"Core":["plank","crunch","core","abs","ab ","sit-up","hollow","leg raise"],"Shoulders":["overhead","ohp","shoulder","lateral raise","front raise","delts"],"Arms":["curl","bicep","tricep","dip","hammer","skull crusher","extension"],"Legs":["squat","lunge","leg ","glute","hamstring","calf","rdl","hip thrust"]};
+function liftMuscleVector(rows){ const mins=MUSCLE_GROUPS.map(()=>0); rows.forEach(r=>{ const el=hmsToSec(getCol(r,["Elapsed Time","Moving Time","Timer Time","elapsed_time"]))/60; const text=["Activity Name","Activity Description","Activity Private Note","Name","Description","Private Note"].map(f=>(getCol(r,[f])||"").toLowerCase()).join(" "); let hit=false; MUSCLE_GROUPS.forEach((g,i)=>{ if(muscleKeywords[g].some(k=>text.includes(k))){ mins[i]+=el; hit=true; }}); if(!hit) mins[2]+=el*0.4; }); return mins; }
+
+function renderWorkoutCalendar(el,labelEl,runSet,liftSet){ el.innerHTML=""; const grid=document.createElement('div'); grid.className="grid"; el.appendChild(grid); let cur=dayjs(); function paint(){ labelEl.textContent=cur.format("MMMM YYYY"); grid.innerHTML=""; const names=["Mon","Tue","Wed","Thu","Fri","Sat","Sun"]; names.forEach(n=>{ const d=document.createElement('div'); d.textContent=n; d.className="muted"; grid.appendChild(d); }); const start=cur.startOf('month'); const first=(start.day()+6)%7; const days=cur.daysInMonth(); for(let i=0;i<first;i++){ const c=document.createElement('div'); c.className="muted"; grid.appendChild(c);} for(let d=1; d<=days; d++){ const dateStr=cur.date(d).format("YYYY-MM-DD"); const hasRun=runSet.has(dateStr); const hasLift=liftSet.has(dateStr); const wrap=document.createElement('div'); wrap.className="day"; if(hasRun||hasLift){ const dot=document.createElement('div'); dot.className="dot"; if(hasRun&&hasLift){ dot.classList.add("half"); } else { dot.style.background = hasRun ? "var(--accent-orange)" : "var(--accent-blue)"; } wrap.appendChild(dot);} else { wrap.textContent=d; } grid.appendChild(wrap);} } document.getElementById('wprev').onclick=()=>{cur=cur.subtract(1,'month'); paint();}; document.getElementById('wnext').onclick=()=>{cur=cur.add(1,'month'); paint();}; paint(); }
+
+let state={raw:[],range:"all"}; let charts={};
+function destroyCharts(){ for(const k in charts){ if(charts[k]) charts[k].destroy(); } charts={}; }
+const rangeToolbar=document.getElementById('rangeToolbar'); rangeToolbar.addEventListener('click',e=>{ const b=e.target.closest('.btn'); if(!b) return; for(const x of rangeToolbar.querySelectorAll('.btn')) x.dataset.active="false"; b.dataset.active="true"; state.range=b.dataset.range; render();}); rangeToolbar.querySelector('.btn[data-range="all"]').dataset.active="true";
+
+document.getElementById('csvInput').addEventListener('change',e=>{ const f=e.target.files[0]; if(!f) return; Papa.parse(f,{header:true,dynamicTyping:false,skipEmptyLines:true,complete:(res)=>{ state.raw=res.data.map(r=>{ const d=getCol(r,["Activity Date","Start Date","Date"]); return {...r,__date:d?dayjs(d):null}; }).filter(r=>r.__date && r.__date.isValid()); initOnce(); render(); }}); });
+
+function initOnce(){ const sel=document.getElementById('radarMonth'); sel.innerHTML=""; const now=dayjs(); for(let m=0;m<12;m++){ const opt=document.createElement('option'); opt.value=`${now.year()}-${String(m+1).padStart(2,'0')}`; opt.textContent=dayjs().month(m).year(now.year()).format("MMMM YYYY"); sel.appendChild(opt);} sel.value=`${now.year()}-${String(now.month()+1).padStart(2,'0')}`; sel.onchange=()=>renderRadar(); document.getElementById('radarMode').onchange=()=>renderRadar(); const ys=Array.from(new Set(state.raw.map(r=>r.__date.year()))).sort((a,b)=>b-a); const ysel=document.getElementById('runYearSelect'); ysel.innerHTML=""; ys.forEach(y=>{ const o=document.createElement('option'); o.value=y; o.textContent=y; ysel.appendChild(o);}); ysel.value=ys[0]; ysel.onchange=()=>renderRunTables(); }
+
+function render(){ if(!state.raw.length) return; destroyCharts(); const filtered=state.raw.filter(r=>inRange(r.__date,state.range)); const monthLabel=dayjs().format("MMMYYYY").toUpperCase();
+
+  const runs=filtered.filter(isRun).map(r=>({date:r.__date, distance:normalizeDistance(getCol(r,["Distance","distance"])), elapsed:hmsToSec(getCol(r,["Moving Time","Elapsed Time","Timer Time","moving_time","elapsed_time"])), effort:Number(getCol(r,["Relative Effort","Training Load","Intensity"]))||0, elev:Number(getCol(r,["Elevation Gain","Elev Gain","Elevation Gain (m)"]))||0 }));
+  document.getElementById('run_distance').textContent=sum(runs.map(x=>x.distance)).toFixed(1);
+  document.getElementById('run_sessions').textContent=runs.length;
+  document.getElementById('run_time').textContent=fmtHMS(sum(runs.map(x=>x.elapsed)));
+  document.getElementById('run_effort').textContent=sum(runs.map(x=>x.effort));
+  const wmap=new Map(); runs.forEach(r=>{ const k=`${r.date.year()}-W${String(r.date.isoWeek()).padStart(2,'0')}`; wmap.set(k,(wmap.get(k)||0)+r.distance);}); const wk=Array.from(wmap.keys()).sort(); const wv=wk.map(k=>wmap.get(k));
+  charts.runWeekly=new Chart(document.getElementById('runWeekly'),{type:'line',data:{labels:wk,datasets:[{label:monthLabel,data:wv,borderWidth:2,tension:.3,fill:true,borderColor:'#ff6a00',backgroundColor:'rgba(255,106,0,0.15)',pointRadius:0}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:true,labels:{color:'#cfd3da'}}},scales:{x:{grid:{color:'rgba(255,255,255,.06)'}},y:{beginAtZero:true,grid:{color:'rgba(255,255,255,.06)'}}}}});
+  const paceVals=filtered.filter(isRun).map(r=>{ const d=normalizeDistance(getCol(r,["Distance"])); const e=hmsToSec(getCol(r,["Moving Time","Elapsed Time","Timer Time"])); if(!d) return null; return (e/60)/d;}).filter(v=>v!==null && isFinite(v)); const minP=Math.floor(Math.min(...(paceVals.length?paceVals:[5]))); const maxP=Math.ceil(Math.max(...(paceVals.length?paceVals:[8]))); const buckets=[]; for(let m=minP;m<=maxP;m+=0.25) buckets.push(m); const counts=new Array(buckets.length).fill(0); paceVals.forEach(p=>{ let i=buckets.findIndex(b=>p<=b); if(i<0) i=buckets.length-1; counts[i]++;});
+  charts.runPace=new Chart(document.getElementById('runPace'),{type:'bar',data:{labels:buckets.map(b=>b.toFixed(2)),datasets:[{data:counts,backgroundColor:'#ff6a00'}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{x:{ticks:{display:false},grid:{color:'rgba(255,255,255,.06)'}},y:{beginAtZero:true,grid:{color:'rgba(255,255,255,.06)'}}}}});
+  renderRunTables();
+
+  const liftsAll=state.raw.filter(isLift); const lifts=filtered.filter(isLift);
+  const liftElapsed=lifts.map(r=>hmsToSec(getCol(r,["Elapsed Time","Moving Time","Timer Time","elapsed_time"]))); const liftTime=sum(liftElapsed); document.getElementById('lift_sessions').textContent=lifts.length; document.getElementById('lift_time').textContent=fmtHMS(liftTime); document.getElementById('lift_avg_time').textContent=fmtHMS(lifts.length?Math.round(liftTime/lifts.length):0); document.getElementById('lift_tagged').textContent=lifts.length;
+  const mMap=new Map(); liftsAll.forEach(l=>{ const k=l.__date.format('YYYY-MM'); mMap.set(k,(mMap.get(k)||0)+1);}); const mKeys=Array.from(mMap.keys()).sort(); const mVals=mKeys.map(k=>mMap.get(k));
+  charts.liftMonthly=new Chart(document.getElementById('liftMonthly'),{type:'bar',data:{labels:mKeys,datasets:[{label:monthLabel,data:mVals,backgroundColor:'#4aa3ff'}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:true,labels:{color:'#cfd3da'}}},scales:{x:{grid:{color:'rgba(255,255,255,.06)'}},y:{beginAtZero:true,grid:{color:'rgba(255,255,255,.06)'}}}}});
+  const liftTrend=liftsAll.sort((a,b)=>a.__date.valueOf()-b.__date.valueOf()).map(l=>({x:l.__date.format('YYYY-MM-DD'),y:Math.round(hmsToSec(getCol(l,["Elapsed Time","Moving Time","Timer Time"]))/60)}));
+  charts.liftDurations=new Chart(document.getElementById('liftDurations'),{type:'line',data:{labels:liftTrend.map(p=>p.x),datasets:[{data:liftTrend.map(p=>p.y),borderColor:'#4aa3ff',backgroundColor:'rgba(74,163,255,0.2)',borderWidth:2,tension:.3,fill:true,pointRadius:0}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{x:{grid:{color:'rgba(255,255,255,.06)'}},y:{beginAtZero:true,grid:{color:'rgba(255,255,255,.06)'}}}}});
+
+  const runSet=new Set(state.raw.filter(isRun).map(r=>r.__date.format('YYYY-MM-DD')));
+  const liftSet=new Set(state.raw.filter(isLift).map(r=>r.__date.format('YYYY-MM-DD')));
+  renderWorkoutCalendar(document.getElementById('workoutCal'), document.getElementById('wlabel'), runSet, liftSet);
+
+  renderRadar();
+}
+
+function renderRunTables(){ const year=Number(document.getElementById('runYearSelect').value); const rows=state.raw.filter(isRun); const yrRows=rows.filter(r=>r.__date.year()===year); const yd=sum(yrRows.map(r=>normalizeDistance(getCol(r,["Distance"])))); const yt=sum(yrRows.map(r=>hmsToSec(getCol(r,["Moving Time","Elapsed Time","Timer Time"])))); const ye=sum(yrRows.map(r=>Number(getCol(r,["Elevation Gain","Elev Gain","Elevation Gain (m)"]))||0)); document.getElementById('runYearTable').innerHTML=`
+  <tr><td>${year}</td><td></td></tr>
+  <tr><td>Activities</td><td>${yrRows.length}</td></tr>
+  <tr><td>Distance</td><td>${yd.toFixed(1)} km</td></tr>
+  <tr><td>Time</td><td>${fmtHMS(yt)}</td></tr>
+  <tr><td>Elev Gain</td><td>${Math.round(ye)} m</td></tr>`;
+  const ad=sum(rows.map(r=>normalizeDistance(getCol(r,["Distance"])))); const at=sum(rows.map(r=>hmsToSec(getCol(r,["Moving Time","Elapsed Time","Timer Time"])))); const ae=sum(rows.map(r=>Number(getCol(r,["Elevation Gain","Elev Gain","Elevation Gain (m)"]))||0)); document.getElementById('runAllTimeTable').innerHTML=`
+  <tr><td>Activities</td><td>${rows.length}</td></tr>
+  <tr><td>Distance</td><td>${ad.toFixed(1)} km</td></tr>
+  <tr><td>Time</td><td>${fmtHMS(at)}</td></tr>
+  <tr><td>Elev Gain</td><td>${Math.round(ae)} m</td></tr>`;
+  if(charts.runCompare) charts.runCompare.destroy(); const mode=state.range; const now=dayjs(); let cur=[], prev=[], labels=[]; if(mode==="mtd"){ const start=now.startOf('month'), end=now.endOf('month'); const prevStart=start.subtract(1,'month'), prevEnd=prevStart.endOf('month'); const dm=end.date(); for(let d=1; d<=dm; d++){ const dt=start.date(d); const sumDay=rows.filter(r=>r.__date.isSame(dt,'day')).reduce((s,r)=>s+normalizeDistance(getCol(r,["Distance"])),0); cur.push(sumDay); const dtPrev=prevStart.date(Math.min(d,prevEnd.date())); const sumPrev=rows.filter(r=>r.__date.isSame(dtPrev,'day')).reduce((s,r)=>s+normalizeDistance(getCol(r,["Distance"])),0); prev.push(sumPrev); labels.push(String(d)); } } else if(mode==="ytd"){ const thisY=now.year(), lastY=now.year()-1; const maxW=now.isoWeek(); for(let w=1; w<=maxW; w++){ const sW=rows.filter(r=>r.__date.year()===thisY && r.__date.isoWeek()===w).reduce((s,r)=>s+normalizeDistance(getCol(r,["Distance"])),0); const sLW=rows.filter(r=>r.__date.year()===lastY && r.__date.isoWeek()===w).reduce((s,r)=>s+normalizeDistance(getCol(r,["Distance"])),0); cur.push(sW); prev.push(sLW); labels.push("W"+w);} } else { const start=now.startOf('month'), end=now.endOf('month'); const prevStart=start.subtract(1,'month'), prevEnd=prevStart.endOf('month'); const dm=end.date(); for(let d=1; d<=dm; d++){ const dt=start.date(d); const sumDay=rows.filter(r=>r.__date.isSame(dt,'day')).reduce((s,r)=>s+normalizeDistance(getCol(r,["Distance"])),0); cur.push(sumDay); const dtPrev=prevStart.date(Math.min(d, prevEnd.date())); const sumPrev=rows.filter(r=>r.__date.isSame(dtPrev,'day')).reduce((s,r)=>s+normalizeDistance(getCol(r,["Distance"])),0); prev.push(sumPrev); labels.push(String(d)); } }
+  charts.runCompare=new Chart(document.getElementById('runCompare'),{type:'line',data:{labels,datasets:[{label:'Current',data:cur,borderColor:'#ff6a00',backgroundColor:'rgba(255,106,0,0.15)',fill:true,tension:.3,borderWidth:2,pointRadius:0},{label:'Previous',data:prev,borderColor:'rgba(200,200,200,0.9)',backgroundColor:'rgba(180,180,180,0.15)',fill:true,tension:.3,borderWidth:2,pointRadius:0}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{x:{grid:{color:'rgba(255,255,255,.06)'}},y:{beginAtZero:true,grid:{color:'rgba(255,255,255,.06)'}}}}});
+}
+
+function renderRadar(){ if(!state.raw.length) return; if(charts.liftRadar) charts.liftRadar.destroy(); const mode=document.getElementById('radarMode').value; const sel=document.getElementById('radarMonth').value; const all=state.raw.filter(isLift); let curr=[], prev=[]; if(mode==="mtd"){ const ref=dayjs(sel+"-01"); const start=ref.startOf('month'), end=ref.endOf('month'); const pStart=start.subtract(1,'month'), pEnd=pStart.endOf('month'); curr=all.filter(r=>r.__date.isAfter(start.subtract(1,'day'))&&r.__date.isBefore(end.add(1,'day'))); prev=all.filter(r=>r.__date.isAfter(pStart.subtract(1,'day'))&&r.__date.isBefore(pEnd.add(1,'day')));} else { const year=dayjs(sel+"-01").year(); const start=dayjs(`${year}-01-01`); const end=dayjs(`${year}-12-31`); const pStart=start.subtract(1,'year'), pEnd=end.subtract(1,'year'); const now=dayjs(); const clamp=(now.year()===year)?now:end; curr=all.filter(r=>r.__date.isAfter(start.subtract(1,'day'))&&r.__date.isBefore(clamp.add(1,'day'))); prev=all.filter(r=>r.__date.isAfter(pStart.subtract(1,'day'))&&r.__date.isBefore(pEnd.add(1,'day')));} const cv=liftMuscleVector(curr), pv=liftMuscleVector(prev); const ref=dayjs(sel+"-01"); const curLabel=(mode==="mtd")?ref.format("MMMM YYYY"):ref.format("YYYY")+" YTD"; const prevLabel=(mode==="mtd")?ref.subtract(1,'month').format("MMMM YYYY"):ref.subtract(1,'year').format("YYYY")+" YTD";
+  charts.liftRadar=new Chart(document.getElementById('liftRadar'),{type:'radar',data:{labels:["Back","Chest","Core","Shoulders","Arms","Legs"],datasets:[{label:curLabel,data:[cv[0],cv[1],cv[2],cv[3],cv[4],cv[5]],borderColor:'#4aa3ff',backgroundColor:'rgba(74,163,255,0.20)',borderWidth:2,pointRadius:2},{label:prevLabel,data:[pv[0],pv[1],pv[2],pv[3],pv[4],pv[5]],borderColor:'rgba(150,160,180,0.9)',backgroundColor:'rgba(180,190,200,0.15)',borderWidth:1,pointRadius:2}]},options:{responsive:true,maintainAspectRatio:false,scales:{r:{angleLines:{color:'rgba(255,255,255,.06)'},grid:{color:'rgba(255,255,255,.06)'},pointLabels:{color:'#cfd3da'},ticks:{display:false}}},plugins:{legend:{display:true,labels:{color:'#cfd3da'}}}}});
+}
+
+// Auto-load Google Sheets data on page load
 const SHEET_CSV = "https://docs.google.com/spreadsheets/d/e/2PACX-1vTUvxg_cAUFIJwRhsV754db7rNJM_k9pIh_5v0MYus7MHQfDEZTA1uLUfdavyYe2fmEDVEODWkM_wcw/pub?output=csv";
 const ALL_ORIGINS = "https://api.allorigins.win/raw?url=" + encodeURIComponent(SHEET_CSV);
-const preview = document.getElementById("preview");
-
-function log(msg){ preview.textContent += msg + "\\n"; }
-
-log("Fetching CSV from Google Sheets via allorigins…");
 
 fetch(ALL_ORIGINS)
   .then(r => {
@@ -127,19 +297,24 @@ fetch(ALL_ORIGINS)
     return r.text();
   })
   .then(text => {
-    log("✅ CSV downloaded (" + text.length + " chars).");
-    document.getElementById("liveStatus").textContent = "Live source: Google Sheets ✓";
+    document.getElementById('liveStatus').textContent = "Live source: Google Sheets ✓";
     Papa.parse(text, {
       header: true,
+      dynamicTyping: false,
+      skipEmptyLines: true,
       complete: (res) => {
-        log("✅ Parsed " + res.data.length + " rows.");
-        preview.textContent += "\\nSample:\\n" + JSON.stringify(res.data.slice(0,5), null, 2);
+        state.raw = res.data.map(r => {
+          const d = getCol(r, ["Activity Date", "Start Date", "Date"]);
+          return {...r, __date: d ? dayjs(d) : null};
+        }).filter(r => r.__date && r.__date.isValid());
+        initOnce();
+        render();
       }
     });
   })
   .catch(err => {
-    log("❌ Couldn’t load Google Sheets CSV: " + err);
-    document.getElementById("liveStatus").textContent = "Live source failed — drop CSV above";
+    document.getElementById('liveStatus').textContent = "Live source failed — drop CSV above";
+    console.error("Google Sheets load error:", err);
   });
 </script>
 </body>
